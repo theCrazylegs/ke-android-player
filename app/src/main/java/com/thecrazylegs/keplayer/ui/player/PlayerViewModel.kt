@@ -50,7 +50,9 @@ data class PlayerUiState(
     val exoPlayerError: String? = null,
     val exoPlayerVolume: Float = 1.0f,
     // Debug mode (default: show player, not debug)
-    val showDebug: Boolean = false
+    val showDebug: Boolean = false,
+    // Room info
+    val roomId: Int = -1
 )
 
 class PlayerViewModel(
@@ -73,7 +75,8 @@ class PlayerViewModel(
             serverUrl = tokenStorage.serverUrl ?: "",
             token = tokenStorage.token,
             username = tokenStorage.username ?: "",
-            historyIds = persistedHistory
+            historyIds = persistedHistory,
+            roomId = tokenStorage.roomId
         )
 
         // Collect socket events
@@ -372,6 +375,8 @@ class PlayerViewModel(
      */
     fun getWaitingScreenItem(): QueueItem? {
         val state = _uiState.value
+        // End of queue: show "WAITING FOR A SINGER..."
+        if (state.isAtQueueEnd) return null
         // If we have a pending item (after NEXT/playback ended), show that
         if (state.pendingItem != null) return state.pendingItem
         // If we haven't started playing yet (waiting for PLAY), show current item

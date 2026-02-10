@@ -153,22 +153,24 @@ fun WaitingScreen(
                         )
                     }
 
-                    // Queue counter (right side)
-                    Column(
-                        horizontalAlignment = Alignment.End,
-                        modifier = Modifier.padding(end = 16.dp)
-                    ) {
-                        Text(
-                            text = queueRemaining.toString(),
-                            color = Color(0xFFFD80D8),
-                            fontSize = 52.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = if (queueRemaining > 0) "waiting" else "",
-                            color = Color(0xFFE0E0E0),
-                            fontSize = 16.sp
-                        )
+                    // Queue counter (right side) - hidden when 0
+                    if (queueRemaining > 0) {
+                        Column(
+                            horizontalAlignment = Alignment.End,
+                            modifier = Modifier.padding(end = 16.dp)
+                        ) {
+                            Text(
+                                text = queueRemaining.toString(),
+                                color = Color(0xFFFD80D8),
+                                fontSize = 52.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "waiting",
+                                color = Color(0xFFE0E0E0),
+                                fontSize = 16.sp
+                            )
+                        }
                     }
                 }
             }

@@ -11,8 +11,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.key.*
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -59,12 +62,43 @@ fun PlayerScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val dateFormat = remember { SimpleDateFormat("HH:mm:ss.SSS", Locale.getDefault()) }
+    var isMenuOpen by remember { mutableStateOf(false) }
+    val rootFocusRequester = remember { FocusRequester() }
+
+    // Request focus on the root so key events are received
+    LaunchedEffect(Unit) {
+        rootFocusRequester.requestFocus()
+    }
 
     // Determine if we should show waiting screen
     // Show when: no media loaded OR pending item exists (after NEXT)
     val showWaitingScreen = uiState.mediaUrl == null || uiState.pendingItem != null
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .focusRequester(rootFocusRequester)
+            .focusable()
+            .onPreviewKeyEvent { keyEvent ->
+                if (keyEvent.type == KeyEventType.KeyDown) {
+                    when (keyEvent.key) {
+                        Key.DirectionLeft -> {
+                            if (!isMenuOpen) {
+                                isMenuOpen = true
+                                true
+                            } else false
+                        }
+                        Key.Back -> {
+                            if (isMenuOpen) {
+                                isMenuOpen = false
+                                true
+                            } else false
+                        }
+                        else -> false
+                    }
+                } else false
+            }
+    ) {
         // Video Player always present (to avoid recreation issues)
         if (!uiState.showDebug) {
             VideoPlayer(
@@ -96,33 +130,6 @@ fun PlayerScreen(
             )
         }
 
-        // Connection badge + controls (top right)
-        Row(
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            ConnectionBadge(state = uiState.connectionState)
-
-            TvButton(
-                onClick = { viewModel.toggleDebug() },
-                contentColor = Color.White
-            ) {
-                Text(if (uiState.showDebug) "Player" else "Debug")
-            }
-
-            TvButton(
-                onClick = {
-                    viewModel.disconnectSocket()
-                    onLogout()
-                },
-                contentColor = Color.Red
-            ) {
-                Text("Logout")
-            }
-        }
-
         // Debug panel (if enabled)
         if (uiState.showDebug) {
             DebugPanel(
@@ -132,6 +139,22 @@ fun PlayerScreen(
                 modifier = Modifier.fillMaxSize()
             )
         }
+
+        // Side menu overlay
+        SideMenu(
+            isVisible = isMenuOpen,
+            connectionState = uiState.connectionState,
+            username = uiState.username,
+            serverUrl = uiState.serverUrl,
+            roomId = uiState.roomId,
+            isDebugMode = uiState.showDebug,
+            onToggleDebug = { viewModel.toggleDebug() },
+            onLogout = {
+                viewModel.disconnectSocket()
+                onLogout()
+            },
+            onDismiss = { isMenuOpen = false }
+        )
     }
 }
 
@@ -288,7 +311,7 @@ private fun DebugPanel(
 }
 
 @Composable
-private fun ConnectionBadge(state: String) {
+internal fun ConnectionBadge(state: String) {
     val (color, text) = when (state) {
         "connected" -> Color(0xFF4CAF50) to "Connected"
         "disconnected" -> Color(0xFF9E9E9E) to "Disconnected"
