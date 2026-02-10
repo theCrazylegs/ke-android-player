@@ -11,10 +11,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 data class LoginUiState(
-    val serverUrl: String = "192.168.1.162:3000",
-    val username: String = "stella_admin",
-    val password: String = "zwHDdJA\$CcDs5%0nVKpa",
-    val roomId: String = "2",
+    val serverUrl: String = "",
+    val username: String = "",
+    val password: String = "",
+    val roomId: String = "",
     val isLoading: Boolean = false,
     val error: String? = null,
     val isLoggedIn: Boolean = false
