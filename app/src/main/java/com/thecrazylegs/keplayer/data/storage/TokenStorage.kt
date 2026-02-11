@@ -79,6 +79,16 @@ class TokenStorage(context: Context) {
 
     fun isLoggedIn(): Boolean = token != null && serverUrl != null
 
+    fun clearAuth() {
+        prefs.edit()
+            .remove(KEY_TOKEN)
+            .remove(KEY_USERNAME)
+            .remove(KEY_USER_ID)
+            .remove(KEY_IS_ADMIN)
+            .remove(KEY_HISTORY_IDS)
+            .apply()
+    }
+
     fun clear() {
         prefs.edit().clear().apply()
     }

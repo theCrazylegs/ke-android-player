@@ -74,6 +74,9 @@ dependencies {
     // Image loading (for avatars)
     implementation(libs.coil.compose)
 
+    // mDNS discovery (pure Java, replaces Android NsdManager which has hostname resolution issues)
+    implementation("org.jmdns:jmdns:3.5.9")
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

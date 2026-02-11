@@ -170,6 +170,7 @@ fun LoginScreen(
                     }
                     Text(if (uiState.isLoading) "Connecting..." else "Connect")
                 }
+
             }
         }
     }

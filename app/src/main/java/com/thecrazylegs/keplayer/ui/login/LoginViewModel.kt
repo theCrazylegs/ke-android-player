@@ -56,6 +56,10 @@ class LoginViewModel(
         _uiState.value = _uiState.value.copy(roomId = roomId, error = null)
     }
 
+    fun showError(message: String) {
+        _uiState.value = _uiState.value.copy(error = message)
+    }
+
     fun login() {
         val state = _uiState.value
 
