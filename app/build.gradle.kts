@@ -46,6 +46,7 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
+    implementation("androidx.compose.material:material-icons-extended")
 
     // Navigation
     implementation(libs.navigation.compose)
@@ -76,6 +77,9 @@ dependencies {
 
     // mDNS discovery (pure Java, replaces Android NsdManager which has hostname resolution issues)
     implementation("org.jmdns:jmdns:3.5.9")
+
+    // QR code generation
+    implementation("com.google.zxing:core:3.5.3")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

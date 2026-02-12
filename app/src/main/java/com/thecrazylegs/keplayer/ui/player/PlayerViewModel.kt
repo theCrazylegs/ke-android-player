@@ -26,6 +26,8 @@ private const val PLAYER_REQ_NEXT = "server/PLAYER_REQ_NEXT"
 private const val CMD_PLAY = "player/cmd_play"
 private const val CMD_PAUSE = "player/cmd_pause"
 private const val CMD_NEXT = "player/cmd_next"
+private const val CMD_VOLUME = "player/cmd_volume"
+private const val CMD_REPLAY = "player/cmd_replay"
 
 data class PlayerUiState(
     val connectionState: String = "disconnected",
@@ -146,6 +148,18 @@ class PlayerViewModel(
                     Log.d("PlayerViewModel", "CMD_NEXT received")
                     handleNext()
                 }
+                type == CMD_VOLUME -> {
+                    val volume = json.optDouble("payload", 1.0).toFloat().coerceIn(0f, 1f)
+                    Log.d("PlayerViewModel", "CMD_VOLUME: $volume")
+                    handleVolume(volume)
+                }
+                type == CMD_REPLAY -> {
+                    val queueId = json.optInt("payload", -1)
+                    if (queueId >= 0) {
+                        Log.d("PlayerViewModel", "CMD_REPLAY: queueId=$queueId")
+                        handleReplay(queueId)
+                    }
+                }
                 // Queue updates
                 type.contains("queue/push") || type.contains("queue_push") -> {
                     val queue = QueueState.fromJson(json)
@@ -225,6 +239,42 @@ class PlayerViewModel(
      */
     private fun handlePause() {
         _uiState.value = _uiState.value.copy(isPlaying = false)
+    }
+
+    /**
+     * Handle volume command from web player (0-1 float)
+     */
+    private fun handleVolume(volume: Float) {
+        _uiState.value = _uiState.value.copy(exoPlayerVolume = volume)
+    }
+
+    /**
+     * Handle replay command - replay a specific queue item
+     * Truncates history at the replayed item (like web player)
+     */
+    private fun handleReplay(queueId: Int) {
+        val state = _uiState.value
+        val queue = state.queue ?: return
+        val item = queue.entities[queueId] ?: return
+
+        // Truncate history: remove everything from the replayed item onward
+        val historyIndex = state.historyIds.indexOf(queueId)
+        val newHistory = if (historyIndex >= 0) {
+            persistHistory(state.historyIds.take(historyIndex))
+        } else {
+            state.historyIds
+        }
+
+        Log.d("PlayerViewModel", "REPLAY: ${item.title} by ${item.userDisplayName}, history truncated to $newHistory")
+        _uiState.value = state.copy(
+            currentQueueId = queueId,
+            currentItem = item,
+            pendingItem = item,
+            mediaUrl = null,
+            isPlaying = false,
+            isAtQueueEnd = false,
+            historyIds = newHistory
+        )
     }
 
     /**

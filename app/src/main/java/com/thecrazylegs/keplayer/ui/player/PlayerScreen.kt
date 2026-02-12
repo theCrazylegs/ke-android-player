@@ -1,5 +1,9 @@
 package com.thecrazylegs.keplayer.ui.player
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
@@ -105,6 +109,7 @@ fun PlayerScreen(
                 mediaUrl = uiState.mediaUrl,
                 isPlaying = uiState.isPlaying,
                 token = uiState.token,
+                volume = uiState.exoPlayerVolume,
                 modifier = Modifier.fillMaxSize(),
                 onPlaybackState = { state ->
                     viewModel.updateExoPlayerState(state)
@@ -120,7 +125,11 @@ fun PlayerScreen(
         }
 
         // Waiting screen overlay (on top of video when not playing)
-        if (showWaitingScreen && !uiState.showDebug) {
+        AnimatedVisibility(
+            visible = showWaitingScreen && !uiState.showDebug,
+            enter = fadeIn(animationSpec = tween(500)),
+            exit = fadeOut(animationSpec = tween(400))
+        ) {
             WaitingScreen(
                 nextItem = viewModel.getWaitingScreenItem(),
                 queueRemaining = viewModel.getQueueRemainingCount(),
@@ -204,6 +213,8 @@ private fun SongOverlay(
     }
 }
 
+private val AccentPink = Color(0xFFFD80D8)
+
 @Composable
 private fun DebugPanel(
     uiState: PlayerUiState,
@@ -216,7 +227,7 @@ private fun DebugPanel(
             .background(Color(0xCC1A1A1A))
             .padding(16.dp)
     ) {
-        // Header with player state
+        // Header
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -226,7 +237,7 @@ private fun DebugPanel(
                 Text(
                     text = "KE Player - Debug",
                     style = MaterialTheme.typography.headlineSmall,
-                    color = Color.White
+                    color = AccentPink
                 )
                 Text(
                     text = "Server: ${uiState.serverUrl}",
@@ -236,7 +247,7 @@ private fun DebugPanel(
             }
             TvButton(
                 onClick = onClear,
-                contentColor = Color.White
+                contentColor = AccentPink
             ) {
                 Text("Clear")
             }
@@ -246,11 +257,13 @@ private fun DebugPanel(
 
         // Player state info
         Card(
-            colors = CardDefaults.cardColors(containerColor = Color(0xFF2A2A2A)),
-            modifier = Modifier.fillMaxWidth()
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E1E)),
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(1.dp, AccentPink.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
         ) {
             Column(modifier = Modifier.padding(12.dp)) {
-                Text("Player State", color = Color.Cyan, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Text("Player State", color = AccentPink, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                 Spacer(modifier = Modifier.height(4.dp))
                 Text("Playing: ${uiState.isPlaying}", color = Color.White, fontSize = 12.sp)
                 Text("Position: ${String.format("%.2f", uiState.position)}s", color = Color.White, fontSize = 12.sp)
@@ -263,7 +276,6 @@ private fun DebugPanel(
                 uiState.mediaUrl?.let {
                     Text("URL: ${it.take(60)}...", color = Color.Gray, fontSize = 10.sp)
                 }
-                // ExoPlayer state
                 Spacer(modifier = Modifier.height(4.dp))
                 val exoColor = when (uiState.exoPlayerState) {
                     "READY" -> Color.Green
@@ -281,18 +293,36 @@ private fun DebugPanel(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Events count
-        Text(
-            text = "Events: ${uiState.events.size}",
-            color = Color.Gray,
-            fontSize = 12.sp
-        )
+        // Events count badge
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = "Events",
+                color = AccentPink,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Surface(
+                color = AccentPink.copy(alpha = 0.2f),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text(
+                    text = "${uiState.events.size}",
+                    color = AccentPink,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                )
+            }
+        }
 
         Spacer(modifier = Modifier.height(4.dp))
 
         // Events list
         Card(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .border(1.dp, AccentPink.copy(alpha = 0.15f), RoundedCornerShape(8.dp)),
             colors = CardDefaults.cardColors(containerColor = Color(0xFF0D0D0D)),
             shape = RoundedCornerShape(8.dp)
         ) {
@@ -335,7 +365,6 @@ internal fun ConnectionBadge(state: String) {
 
 @Composable
 private fun EventItem(event: SocketEvent, dateFormat: SimpleDateFormat) {
-    // Get action type for better display
     val actionType = event.getActionType()
     val displayType = if (actionType != null) {
         "${event.type}: $actionType"
@@ -348,72 +377,84 @@ private fun EventItem(event: SocketEvent, dateFormat: SimpleDateFormat) {
         event.type == "DISCONNECT" -> Color(0xFFF44336)
         event.type == "CONNECT_ERROR" || event.type == "ERROR" -> Color(0xFFF44336)
         event.type == "CONNECTING" -> Color(0xFFFF9800)
-        actionType?.contains("PLAYER_STATUS") == true -> Color(0xFF9E9E9E)  // Gray for status echo
-        actionType?.contains("CMD_") == true -> Color(0xFF4CAF50)  // Green for commands
-        actionType?.contains("queue") == true -> Color(0xFFFF9800)  // Orange for queue
+        actionType?.contains("PLAYER_STATUS") == true -> Color(0xFF9E9E9E)
+        actionType?.contains("CMD_") == true -> Color(0xFF4CAF50)
+        actionType?.contains("queue") == true -> Color(0xFFFF9800)
         event.type == "ACTION" -> Color(0xFF2196F3)
         else -> Color(0xFF9C27B0)
     }
 
-    Column(
+    // Focusable for D-pad scrolling + colored left border
+    Row(
         modifier = Modifier
             .fillMaxWidth()
+            .focusable()
             .background(Color(0xFF1A1A1A), RoundedCornerShape(4.dp))
-            .padding(8.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+        // Colored left border indicator
+        Box(
+            modifier = Modifier
+                .width(3.dp)
+                .fillMaxHeight()
+                .background(typeColor, RoundedCornerShape(topStart = 4.dp, bottomStart = 4.dp))
+        )
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(8.dp)
         ) {
             Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = displayType,
-                    color = typeColor,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 12.sp,
-                    fontFamily = FontFamily.Monospace
-                )
-                // Show count badge if > 1 (Chrome-style)
-                if (event.count > 1) {
-                    Surface(
-                        color = typeColor.copy(alpha = 0.3f),
-                        shape = RoundedCornerShape(10.dp)
-                    ) {
-                        Text(
-                            text = "${event.count}",
-                            color = typeColor,
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                        )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = displayType,
+                        color = typeColor,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                    if (event.count > 1) {
+                        Surface(
+                            color = typeColor.copy(alpha = 0.3f),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text(
+                                text = "${event.count}",
+                                color = typeColor,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
                     }
                 }
+                Text(
+                    text = dateFormat.format(Date(event.timestamp)),
+                    color = Color.Gray,
+                    fontSize = 10.sp,
+                    fontFamily = FontFamily.Monospace
+                )
             }
-            Text(
-                text = dateFormat.format(Date(event.timestamp)),
-                color = Color.Gray,
-                fontSize = 10.sp,
-                fontFamily = FontFamily.Monospace
-            )
-        }
 
-        // Don't show full data for repeated PLAYER_STATUS (too verbose)
-        val showData = event.data.isNotBlank() &&
-            !(actionType?.contains("PLAYER_STATUS") == true && event.count > 1)
+            val showData = event.data.isNotBlank() &&
+                !(actionType?.contains("PLAYER_STATUS") == true && event.count > 1)
 
-        if (showData) {
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = event.data.take(500) + if (event.data.length > 500) "..." else "",
-                color = Color(0xFFB0B0B0),
-                fontSize = 11.sp,
-                fontFamily = FontFamily.Monospace,
-                lineHeight = 14.sp
-            )
+            if (showData) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = event.data.take(500) + if (event.data.length > 500) "..." else "",
+                    color = Color(0xFFB0B0B0),
+                    fontSize = 11.sp,
+                    fontFamily = FontFamily.Monospace,
+                    lineHeight = 14.sp
+                )
+            }
         }
     }
 }

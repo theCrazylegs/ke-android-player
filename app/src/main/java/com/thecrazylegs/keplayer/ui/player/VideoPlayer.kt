@@ -31,6 +31,7 @@ fun VideoPlayer(
     mediaUrl: String?,
     isPlaying: Boolean,
     token: String?,
+    volume: Float = 1.0f,
     modifier: Modifier = Modifier,
     onPlaybackState: (String) -> Unit = {},
     onError: (String) -> Unit = {},
@@ -58,8 +59,8 @@ fun VideoPlayer(
             .apply {
                 playWhenReady = false
                 repeatMode = Player.REPEAT_MODE_OFF
-                volume = 1.0f  // Ensure volume is at max
-                Log.d(TAG, "ExoPlayer created, volume: $volume, deviceVolume: $deviceVolume")
+                this.volume = 1.0f  // Ensure volume is at max
+                Log.d(TAG, "ExoPlayer created, volume: ${this.volume}, deviceVolume: $deviceVolume")
             }
     }
 
@@ -130,6 +131,12 @@ fun VideoPlayer(
     LaunchedEffect(isPlaying) {
         Log.d(TAG, "Play state changed: $isPlaying, player state: ${exoPlayer.playbackState}")
         exoPlayer.playWhenReady = isPlaying
+    }
+
+    // Handle volume changes from web player
+    LaunchedEffect(volume) {
+        Log.d(TAG, "Volume set to: $volume")
+        exoPlayer.volume = volume
     }
 
     // Cleanup
