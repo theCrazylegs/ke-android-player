@@ -16,14 +16,29 @@ import com.thecrazylegs.keplayer.navigation.NavGraph
 import com.thecrazylegs.keplayer.ui.theme.KEAndroidPlayerTheme
 
 class MainActivity : ComponentActivity() {
-    override fun onUserLeaveHint() {
-        super.onUserLeaveHint()
-        // On Android TV, pressing Home just backgrounds the app.
-        // Finish and kill process so next launch gets a fresh start (clean history).
-        // finishAndRemoveTask alone doesn't kill the process on TV boxes,
-        // leaving old ViewModel coroutines running (causes status flip-flop).
+    /**
+     * Kill process cleanly. On Android TV boxes, finishAndRemoveTask() alone
+     * doesn't kill the process, leaving old ViewModel coroutines running
+     * (causes status flip-flop). Kill the process to ensure a fresh start.
+     */
+    private fun finishAndKill() {
         finishAndRemoveTask()
         android.os.Process.killProcess(android.os.Process.myPid())
+    }
+
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        // Home button pressed
+        finishAndKill()
+    }
+
+    @Suppress("DEPRECATION")
+    override fun onBackPressed() {
+        // Back button pressed - same clean shutdown as Home.
+        // Without this, the process survives and the server thinks
+        // the player is still connected (no PLAYER_EMIT_LEAVE sent).
+        super.onBackPressed()
+        finishAndKill()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
