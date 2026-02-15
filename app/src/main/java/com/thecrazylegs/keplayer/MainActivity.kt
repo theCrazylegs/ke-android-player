@@ -16,6 +16,16 @@ import com.thecrazylegs.keplayer.navigation.NavGraph
 import com.thecrazylegs.keplayer.ui.theme.KEAndroidPlayerTheme
 
 class MainActivity : ComponentActivity() {
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        // On Android TV, pressing Home just backgrounds the app.
+        // Finish and kill process so next launch gets a fresh start (clean history).
+        // finishAndRemoveTask alone doesn't kill the process on TV boxes,
+        // leaving old ViewModel coroutines running (causes status flip-flop).
+        finishAndRemoveTask()
+        android.os.Process.killProcess(android.os.Process.myPid())
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()

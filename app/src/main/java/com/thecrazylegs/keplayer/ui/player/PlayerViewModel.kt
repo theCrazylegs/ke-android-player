@@ -69,15 +69,15 @@ class PlayerViewModel(
     private var statusEmitJob: Job? = null
 
     init {
-        // Load persisted history from storage
-        val persistedHistory = tokenStorage.historyIds
-        Log.d("PlayerViewModel", "Loaded persisted history: ${persistedHistory.size} items")
+        // Clear history on app start so queue restarts from the beginning
+        tokenStorage.clearHistory()
+        Log.d("PlayerViewModel", "Cleared history on app start")
 
         _uiState.value = _uiState.value.copy(
             serverUrl = tokenStorage.serverUrl ?: "",
             token = tokenStorage.token,
             username = tokenStorage.username ?: "",
-            historyIds = persistedHistory,
+            historyIds = emptyList(),
             roomId = tokenStorage.roomId
         )
 
@@ -585,6 +585,15 @@ class PlayerViewModel(
      */
     fun onPlaybackEnded() {
         val state = _uiState.value
+
+        // Ignore if a skip is already in progress (CMD_NEXT sets pendingItem before
+        // ExoPlayer fires STATE_ENDED from the mediaUrl=null). Without this guard,
+        // we'd emit REQ_NEXT which triggers a second CMD_NEXT and skips a song.
+        if (state.pendingItem != null) {
+            Log.d("PlayerViewModel", "Playback ended ignored - skip already in progress (pending: ${state.pendingItem.title})")
+            return
+        }
+
         Log.d("PlayerViewModel", "Playback ended - sending REQ_NEXT to server (currentQueueId=${state.currentQueueId})")
 
         // Immediately show waiting screen (don't wait for server round-trip)

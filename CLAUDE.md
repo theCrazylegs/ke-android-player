@@ -1,4 +1,4 @@
-# KE Android Player
+# KE Android Player (Unofficial)
 
 Android TV app for Karaoke Eternal - native player replacing Kodi addon.
 
@@ -23,7 +23,10 @@ adb -s 192.168.1.86:5555 logcat -d | findstr "VideoPlayer PlayerViewModel Socket
 - **Socket.io** 2.1.0 - Real-time events
 - **Retrofit** 2.11.0 - REST API
 - **Jetpack Compose** - UI
+- **Material Icons Extended** - Menu icons (BugReport, Tv, Logout, Link, Login, Refresh, Settings)
 - **Coil** 2.6.0 - Image loading (avatars)
+- **ZXing** 3.5.3 - QR code generation (auto-pairing)
+- **jmDNS** 3.5.9 - mDNS server discovery
 - **EncryptedSharedPreferences** - Token storage
 
 ---
@@ -47,10 +50,15 @@ app/src/main/java/com/thecrazylegs/keplayer/
 │   ├── login/
 │   │   ├── LoginScreen.kt    # Login form UI (TV-friendly)
 │   │   └── LoginViewModel.kt # Login logic
+│   ├── welcome/
+│   │   ├── WelcomeScreen.kt    # Welcome screen (mDNS + pairing code + QR)
+│   │   ├── WelcomeViewModel.kt # jmDNS discovery + pairing polling
+│   │   └── NsdDiscoveryManager.kt # jmDNS wrapper
 │   └── player/
-│       ├── PlayerScreen.kt   # Main player + debug UI + TvButton
-│       ├── PlayerViewModel.kt # Socket events, commands, status emission
-│       ├── VideoPlayer.kt    # ExoPlayer composable + position tracking
+│       ├── PlayerScreen.kt   # Main player + debug panel (accent pink) + transitions
+│       ├── PlayerViewModel.kt # Socket events, commands (play/pause/next/volume/replay)
+│       ├── SideMenu.kt       # Side menu (Material Icons, AccentPink theme)
+│       ├── VideoPlayer.kt    # ExoPlayer composable + position + volume control
 │       └── WaitingScreen.kt  # Waiting screen between songs (like Kodi)
 └── MainActivity.kt           # Navigation host
 ```
@@ -104,6 +112,8 @@ app/src/main/java/com/thecrazylegs/keplayer/
 | `action` | `player/CMD_PLAY` | - |
 | `action` | `player/CMD_PAUSE` | - |
 | `action` | `player/CMD_NEXT` | - |
+| `action` | `player/CMD_VOLUME` | `payload: float` (0-1, from web volume slider) |
+| `action` | `player/CMD_REPLAY` | `payload: int` (queueId to replay) |
 
 ### QueueItem Fields
 ```kotlin
@@ -151,6 +161,8 @@ when {
     type == CMD_PLAY -> handlePlay()
     type == CMD_PAUSE -> handlePause()
     type == CMD_NEXT -> handleNext()
+    type == CMD_VOLUME -> handleVolume(json.optDouble("payload", 1.0).toFloat())
+    type == CMD_REPLAY -> handleReplay(json.optInt("payload", -1))
     type.contains("queue/push") -> updateQueue(...)
     type.contains("player_status") -> // Ignored (echo)
 }
@@ -173,30 +185,21 @@ data class SocketEvent(
 
 ## TV Remote / D-pad Navigation
 
-### TvButton Component
-```kotlin
-@Composable
-private fun TvButton(
-    onClick: () -> Unit,
-    contentColor: Color = Color.White,
-    content: @Composable RowScope.() -> Unit
-) {
-    var isFocused by remember { mutableStateOf(false) }
-    OutlinedButton(
-        onClick = onClick,
-        modifier = Modifier
-            .onFocusChanged { isFocused = it.isFocused }
-            .focusable()
-            .then(if (isFocused) Modifier.border(3.dp, Color.Yellow, ...) else Modifier),
-        colors = ButtonDefaults.outlinedButtonColors(
-            contentColor = if (isFocused) Color.Yellow else contentColor
-        ),
-        content = content
-    )
-}
-```
+### Side Menu (D-pad LEFT)
+- Slides in from left with scrim overlay
+- Material Icons per item (BugReport/Tv, Logout, Link, Login, Refresh, Settings)
+- Focus: AccentPink border + Yellow text/icon
+- Dismiss: D-pad RIGHT or BACK
+- Both PlayerScreen and WelcomeScreen have their own side menu
 
-**Focus indicators**: Yellow border + text color when focused via D-pad.
+### UI Theme
+- **AccentPink**: `#FD80D8` - brand color for borders, badges, headers
+- **Focus**: Yellow text + AccentPink border on D-pad focus
+- **Debug panel**: AccentPink section headers, colored left borders per event type, focusable items for D-pad scroll
+
+### Transitions
+- **WaitingScreen**: `AnimatedVisibility` with `fadeIn(500ms)` / `fadeOut(400ms)`
+- **SideMenu**: `slideInHorizontally(300ms)` + scrim `fadeIn(300ms)`
 
 ---
 
@@ -255,6 +258,21 @@ Logcat tags: `VideoPlayer`, `PlayerViewModel`, `SocketManager`
 |----------|--------|---------|
 | `/api/login` | POST | Auth, returns user + Set-Cookie |
 | `/api/media/{id}?type=video` | GET | Video stream (requires cookie + admin) |
+| `/api/pair/code` | POST | Request pairing code (non-auth) |
+| `/api/pair/confirm` | POST | Confirm pairing manually (auth) |
+| `/api/pair/link/:code` | GET | QR auto-pairing (auth, returns HTML) |
+| `/api/pair/status/:pairId` | GET | Poll pairing status (non-auth) |
+| `/api/user/:userId/image` | GET | Avatar image (auth) |
+
+---
+
+## QR Code Auto-Pairing
+
+The welcome screen displays a QR code that encodes `http://{serverUrl}/api/pair/link/{CODE}`.
+
+**Flow**: scan QR → browser opens URL → if logged in, pairing confirmed automatically → TV receives token on next poll → connected.
+
+The QR is generated using ZXing `QRCodeWriter` (white on transparent, 256x256 bitmap).
 
 ---
 
